@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: mode === "development" ? "/" : "/C.LABS-CRM/",
+  base: mode === "development" ? "/" : "/CRM-CEU/",
   define: {
     __APP_VERSION__: JSON.stringify(new Date().toISOString()),
   },

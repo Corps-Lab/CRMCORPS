@@ -4,6 +4,7 @@ import { useClients } from "./ClientContext";
 import { safeId } from "@/lib/safeId";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
+import { useAgency } from "./AgencyContext";
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -24,28 +25,84 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const { clients } = useClients();
   const { user } = useAuth();
+  const { isIsolated, currentAgency } = useAgency();
+  const storageKey = useMemo(() => `crm_${currentAgency.id}_transactions`, [currentAgency.id]);
+  const seedTransactions: Transaction[] = useMemo(
+    () => [
+      {
+        id: safeId("txn"),
+        tipo: "entrada",
+        descricao: "Mensalidade - Cliente A",
+        valor: 4200,
+        categoria: "Serviços",
+        mes: new Date().getMonth() + 1,
+        ano: new Date().getFullYear(),
+        clientId: undefined,
+        createdAt: new Date(),
+      },
+      {
+        id: safeId("txn"),
+        tipo: "despesa",
+        descricao: "Folha de pagamento",
+        valor: 18000,
+        categoria: "Pessoal",
+        mes: new Date().getMonth() + 1,
+        ano: new Date().getFullYear(),
+        clientId: undefined,
+        createdAt: new Date(),
+      },
+    ],
+    []
+  );
 
-  const mapRow = (row: any): Transaction => {
-    const clientName = clients.find((c) => c.id === row.client_id)?.razaoSocial || undefined;
+  const mapRow = (row: Record<string, unknown>): Transaction => {
+    const clientId = typeof row.client_id === "string" ? row.client_id : undefined;
+    const valor = typeof row.valor === "number" ? row.valor : Number(row.valor ?? 0);
+    const mes = typeof row.mes === "number" ? row.mes : Number(row.mes ?? 0);
+    const ano = typeof row.ano === "number" ? row.ano : Number(row.ano ?? 0);
+    const vencimento = typeof row.vencimento === "number" ? row.vencimento : undefined;
+    const clientName = clients.find((c) => c.id === clientId)?.razaoSocial || undefined;
     return {
-      id: row.id,
-      tipo: row.tipo,
-      descricao: row.descricao || "",
-      valor: Number(row.valor),
-      categoria: row.categoria || "",
-      mes: row.mes,
-      ano: row.ano,
-      vencimento: row.vencimento || undefined,
-      clientId: row.client_id || undefined,
+      id: String(row.id),
+      tipo: (row.tipo as Transaction["tipo"]) ?? "entrada",
+      descricao: (row.descricao as string) || "",
+      valor,
+      categoria: (row.categoria as string) || "",
+      mes,
+      ano,
+      vencimento,
+      clientId,
       clientName,
-      createdAt: new Date(row.created_at),
+      createdAt: row.created_at ? new Date(row.created_at as string) : new Date(),
     };
+  };
+
+  const readLocalTransactions = (): Transaction[] => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      const parsed: Transaction[] = raw ? JSON.parse(raw) : [];
+      if (!parsed.length) {
+        writeLocalTransactions(seedTransactions);
+        return seedTransactions;
+      }
+      return parsed.map((t) => ({ ...t, createdAt: new Date(t.createdAt) }));
+    } catch {
+      return [];
+    }
+  };
+
+  const writeLocalTransactions = (data: Transaction[]) => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch {
+      /* ignore */
+    }
   };
 
   const refresh = async () => {
     setLoading(true);
-    if (!user) {
-      setTransactions([]);
+    if (!user || isIsolated) {
+      setTransactions(readLocalTransactions());
       setLoading(false);
       return;
     }
@@ -68,11 +125,9 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients.length, user]);
+  }, [clients.length, user, isIsolated, storageKey]);
 
   const addTransaction = async (data: TransactionFormData) => {
-    if (!user) throw new Error("É preciso estar autenticado para registrar transações no Supabase.");
-
     const client = data.clientId ? clients.find((c) => c.id === data.clientId) : null;
     const base: Transaction = {
       id: safeId("txn"),
@@ -90,6 +145,15 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
       createdAt: new Date(),
     };
 
+    if (!user || isIsolated) {
+      setTransactions((prev) => {
+        const next = [base, ...prev];
+        writeLocalTransactions(next);
+        return next;
+      });
+      return;
+    }
+
     const payload = {
       tipo: base.tipo,
       descricao: base.descricao,
@@ -105,7 +169,6 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
       const { data: inserted, error } = await supabase.from("transactions").insert(payload).select("*").single();
       if (error) throw error;
       setTransactions((prev) => [mapRow(inserted), ...prev]);
-      // garante sync com Supabase (ordem/valores)
       refresh();
     } catch (err) {
       console.error("Erro ao salvar transação no Supabase", err);
@@ -114,7 +177,14 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   };
 
   const removeTransaction = async (id: string) => {
-    if (!user) throw new Error("É preciso estar autenticado para remover transações.");
+    if (!user || isIsolated) {
+      setTransactions((prev) => {
+        const next = prev.filter((t) => t.id !== id);
+        writeLocalTransactions(next);
+        return next;
+      });
+      return;
+    }
     try {
       const { error } = await supabase.from("transactions").delete().eq("id", id);
       if (error) throw error;
@@ -127,9 +197,26 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
   };
 
   const updateTransaction = async (id: string, data: Partial<TransactionFormData>) => {
-    if (!user) throw new Error("É preciso estar autenticado para atualizar transações.");
+    if (!user || isIsolated) {
+      setTransactions((prev) => {
+        const next = prev.map((t) => {
+          if (t.id !== id) return t;
+          const updatedClient = data.clientId ? clients.find((c) => c.id === data.clientId) : null;
+          return {
+            ...t,
+            ...data,
+            clientId: data.clientId ?? t.clientId,
+            clientName: updatedClient?.razaoSocial ?? t.clientName,
+            createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
+          };
+        });
+        writeLocalTransactions(next);
+        return next;
+      });
+      return;
+    }
 
-    const payload: any = {};
+    const payload: Record<string, unknown> = {};
     if (data.tipo !== undefined) payload.tipo = data.tipo;
     if (data.descricao !== undefined) payload.descricao = data.descricao;
     if (data.valor !== undefined) payload.valor = data.valor;

@@ -1,14 +1,14 @@
 {
-  "name": "C.LABS CRM",
-  "short_name": "C.LABS CRM",
-  "start_url": "/C.LABS-CRM/",
+  "name": "CÉU CRM",
+  "short_name": "CÉU CRM",
+  "start_url": "/CRM-CEU/",
   "display": "standalone",
-  "background_color": "#050505",
-  "theme_color": "#C7F31D",
+  "background_color": "#0d0804",
+  "theme_color": "#f97316",
   "icons": [
-    { "src": "/icon-32.png", "sizes": "32x32", "type": "image/png" },
-    { "src": "/icon-180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/CRM-CEU/icon-32.png", "sizes": "32x32", "type": "image/png" },
+    { "src": "/CRM-CEU/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/CRM-CEU/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/CRM-CEU/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
