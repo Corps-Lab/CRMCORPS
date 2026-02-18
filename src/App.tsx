@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ClientProvider } from "./contexts/ClientContext";
 import { ContractProvider } from "./contexts/ContractContext";
@@ -25,10 +26,12 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const BASENAME = import.meta.env.MODE === "native" ? "/" : "/CRMCORPS/";
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <BrowserRouter basename="/CRMCORPS/">
+      <BrowserRouter basename={BASENAME}>
         <AuthProvider>
           <ClientProvider>
             <ContractProvider>
@@ -37,17 +40,19 @@ const App = () => (
                   <Toaster />
                   <Sonner />
                   <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/clientes" element={<Clientes />} />
-                    <Route path="/contratos" element={<Contratos />} />
-                    <Route path="/entradas" element={<Financeiro />} />
-                    <Route path="/despesas" element={<Financeiro />} />
-                    <Route path="/tarefas" element={<Demandas />} />
-                    <Route path="/acessos" element={<Acessos />} />
-                    <Route path="/sugestoes" element={<Sugestoes />} />
-                    <Route path="/suporte" element={<Suporte />} />
-                    <Route path="/perfil" element={<Perfil />} />
-                    <Route path="/progresso" element={<Progress />} />
+                    <Route element={<ProtectedRoute />}>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/clientes" element={<Clientes />} />
+                      <Route path="/contratos" element={<Contratos />} />
+                      <Route path="/entradas" element={<Financeiro />} />
+                      <Route path="/despesas" element={<Financeiro />} />
+                      <Route path="/tarefas" element={<Demandas />} />
+                      <Route path="/acessos" element={<Acessos />} />
+                      <Route path="/sugestoes" element={<Sugestoes />} />
+                      <Route path="/suporte" element={<Suporte />} />
+                      <Route path="/perfil" element={<Perfil />} />
+                      <Route path="/progresso" element={<Progress />} />
+                    </Route>
                     <Route path="/auth" element={<Auth />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>

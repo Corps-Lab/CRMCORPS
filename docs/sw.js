@@ -1,11 +1,14 @@
-const CACHE_NAME = "crmcrops-static-v2";
-const OFFLINE_URL = "/CRMCORPS/index.html";
+const CACHE_NAME = "crmcrops-static-v3";
+// Derive the base path from the service worker scope so it works for web (/CRMCORPS/) and native (/).
+const scopePath = new URL(self.registration.scope).pathname;
+const base = scopePath.endsWith("/") ? scopePath : `${scopePath}/`;
+const OFFLINE_URL = `${base}index.html`;
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([OFFLINE_URL, "/CRMCORPS/", "/CRMCORPS/manifest.webmanifest"])
+      cache.addAll([OFFLINE_URL, base, `${base}manifest.webmanifest`])
     )
   );
 });

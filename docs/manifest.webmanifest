@@ -1,7 +1,7 @@
 {
-  "name": "CÉU CRM",
-  "short_name": "CÉU CRM",
-  "start_url": "/CRMCORPS/",
+  "name": "CORPS CRM",
+  "short_name": "CORPS CRM",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0d0804",
   "theme_color": "#f97316",
